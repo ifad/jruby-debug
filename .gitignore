@@ -3,3 +3,4 @@ config.private.yaml
 temp
 .rdebug_hist
 /nbproject/private/
+tmp
