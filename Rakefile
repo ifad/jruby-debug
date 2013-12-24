@@ -1,20 +1,36 @@
-require 'rake/clean'
-require 'rake/testtask'
-require 'rdoc/task'
-require 'rubygems/package_task' 
-require 'rake/javaextensiontask'# rake-compiler
+require 'bundler'
+Bundler::GemHelper.install_tasks
 
-GEM_VERSION = '0.10.4'
+require 'rake/clean'
 
 CLEAN.include('ext')
 CLEAN.include('lib/ruby_debug.jar')
 
+task :default => :test
+
+# Extension
+#
+require 'rake/javaextensiontask' # rake-compiler
+Rake::JavaExtensionTask.new('ruby_debug') do |t|
+  t.ext_dir = "src"
+end
+
+# RDoc
+#
+require 'rdoc/task'
+RDoc::Task.new do |t|
+  t.main = 'README'
+  t.rdoc_files.include 'README'
+end
+
+# Tests
+#
+require 'rake/testtask'
+
 BASE_TEST_FILE_LIST = %w(
   test/base/base.rb
-  test/base/binding.rb 
+  test/base/binding.rb
   test/base/catchpoint.rb)
-
-task :default => :package
 
 CLI_TEST_FILE_LIST = 'test/test-*.rb'
 
@@ -30,7 +46,7 @@ task :test_base => :lib do
 end
 
 desc "Test everything."
-task :test => :test_base do 
+task :test => :test_base do
   Rake::TestTask.new(:test) do |t|
     t.ruby_opts << "--debug"
     t.libs << './ext'
@@ -47,7 +63,7 @@ desc "Helps to setup the project to be able to run tests"
 task :prepare_tests do
   # needed to run CLI test. Unable to use svn:externals yet:
   #   http://subversion.tigris.org/issues/show_bug.cgi?id=937
-  
+
   # rdbg.rb
   sh "curl #{RUBY_DEBUG_PROJECT}/rdbg.rb > rdbg.rb" unless File.exists?('rdbg.rb')
 
@@ -69,51 +85,10 @@ ruby_params: --debug
 EOF
   end
 
+  require './lib/jruby-debug/version'
+
   # - prepare default customized test/config.private.yaml suitable for JRuby
   # - tweak test suite to be able to pass for jruby-debug-base which does not
   #   support e.g. TraceLineNumbers yet.
-  sh "patch -p0 < patch-#{GEM_VERSION}.diff"
-end
-
-spec = Gem::Specification.new do |s|
-  s.platform = "java"
-  s.summary  = "Java implementation of Fast Ruby Debugger"
-  s.name     = 'ruby-debug-base'
-  s.version  = GEM_VERSION
-  s.require_path = 'lib'
-  s.files    = ['AUTHORS',
-                'ChangeLog',
-                'lib/linecache.rb',
-                'lib/linecache-ruby.rb',
-                'lib/ruby-debug-base.rb',
-                'lib/ruby_debug.jar',
-                'lib/tracelines.rb',
-                'MIT-LICENSE',
-                'Rakefile',
-                'README']
-  s.description = <<-EOF
-Java extension to make fast ruby debugger run on JRuby.
-It is the same what ruby-debug-base is for native Ruby.
-EOF
-  s.author   = 'debug-commons team'
-  s.homepage = 'http://rubyforge.org/projects/debug-commons/'
-  s.has_rdoc = true
-  s.rubyforge_project = 'debug-commons'
-end
-
-Gem::PackageTask.new(spec) {}
-
-Rake::JavaExtensionTask.new('ruby_debug') do |t|
-  t.ext_dir = "src"
-end
-
-RDoc::Task.new do |t|
-  t.main = 'README'
-  t.rdoc_files.include 'README'
-end
-
-
-desc "Create a GNU-style ChangeLog via svn2cl"
-task :ChangeLog do
-  system("svn2cl --authors=svn2cl_usermap svn://rubyforge.org/var/svn/debug-commons/jruby-debug/trunk")
+  sh "patch -p0 < patch-#{JRubyDebug::VERSION}.diff"
 end
